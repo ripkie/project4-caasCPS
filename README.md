@@ -69,3 +69,7 @@ Response:
   "ip": "192.168.x.x"
 }
 ```
+### 2. Test Semua ON
+``` 
+GET /test/on
+```
