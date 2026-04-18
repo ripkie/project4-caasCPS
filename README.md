@@ -63,7 +63,9 @@ const char *WIFI_PASSWORD = "PASSWORD_WIFI";
 GET /status
 
 Response:
+```json
 {
   "status": "online",
   "ip": "192.168.x.x"
 }
+```
