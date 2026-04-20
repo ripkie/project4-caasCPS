@@ -73,3 +73,4 @@ Response:
 ``` 
 GET /test/on
 ```
+### 3. Test Salah Satu ON
