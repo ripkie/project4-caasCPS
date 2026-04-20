@@ -73,4 +73,13 @@ Response:
 ``` 
 GET /test/on
 ```
-### 3. Test Salah Satu ON
+Efek:
+
+- LED ON
+- Relay ON
+- Buzzer ON
+
+### 3. Test Semua OFF
+``` 
+GET /test/off
+```
