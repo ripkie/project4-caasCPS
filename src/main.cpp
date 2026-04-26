@@ -9,8 +9,6 @@ const char *WIFI_PASSWORD = "10012009";
 #define PIN_LED 8
 #define PIN_BUZZER 6
 
-#define RELAY_OPEN_MS 3000
-
 #define RELAY_ON HIGH
 #define RELAY_OFF LOW
 
@@ -19,11 +17,18 @@ const char *WIFI_PASSWORD = "10012009";
 
 WebServer server(80);
 
+// STATUS (biar stabil)
+bool statusLed = false;
+bool statusRelay = false;
+
 void allIdle()
 {
   digitalWrite(PIN_RELAY, RELAY_OFF);
   digitalWrite(PIN_LED, LOW);
   digitalWrite(PIN_BUZZER, BUZZER_OFF);
+
+  statusRelay = false;
+  statusLed = false;
 }
 
 void beepShort(int times)
@@ -38,24 +43,23 @@ void beepShort(int times)
 }
 
 // akses diterima
-void accessGranted(String name)
+void aksesDiterima(String name)
 {
   Serial0.println("[ACTION] AKSES DITERIMA -> " + name);
 
   digitalWrite(PIN_LED, HIGH);
+  statusLed = true;
+
   digitalWrite(PIN_RELAY, RELAY_ON);
+  statusRelay = true;
 
   digitalWrite(PIN_BUZZER, BUZZER_ON);
   delay(100);
   digitalWrite(PIN_BUZZER, BUZZER_OFF);
-
-  delay(RELAY_OPEN_MS);
-
-  allIdle();
 }
 
 // AKSES DITOLAK
-void accessDenied(String reason)
+void aksesDitolak(String reason)
 {
   Serial0.println("[ACTION] AKSES DITOLAK -> " + reason);
 
@@ -68,8 +72,6 @@ void accessDenied(String reason)
   }
 
   beepShort(3);
-
-  allIdle();
 }
 
 // POST /trigger
@@ -98,13 +100,13 @@ void handleTrigger()
   if (action == "granted")
   {
     String name = doc["name"] | "user";
-    accessGranted(name);
+    aksesDiterima(name);
     server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"granted\"}");
   }
   else
   {
     String reason = doc["reason"] | "unknown";
-    accessDenied(reason);
+    aksesDitolak(reason);
     server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"denied\"}");
   }
 }
@@ -116,12 +118,44 @@ void handleStatus()
               "{\"status\":\"online\",\"ip\":\"" + WiFi.localIP().toString() + "\"}");
 }
 
+// GET /device/state
+void handleDeviceState()
+{
+  String json = "{";
+  json += "\"led\":" + String(statusLed ? "true" : "false") + ",";
+  json += "\"relay\":" + String(statusRelay ? "true" : "false");
+  json += "}";
+
+  server.send(200, "application/json", json);
+}
+
+// CONTROL RELAY MANUAL
+void handleRelayOn()
+{
+  digitalWrite(PIN_LED, HIGH);
+  digitalWrite(PIN_RELAY, RELAY_ON);
+
+  statusLed = true;
+  statusRelay = true;
+
+  server.send(200, "application/json", "{\"relay\":true}");
+}
+
+void handleRelayOff()
+{
+  allIdle();
+  server.send(200, "application/json", "{\"relay\":false}");
+}
+
 // TEST ENDPOINT
 void handleTestOn()
 {
   digitalWrite(PIN_LED, HIGH);
   digitalWrite(PIN_RELAY, RELAY_ON);
   digitalWrite(PIN_BUZZER, BUZZER_ON);
+
+  statusLed = true;
+  statusRelay = true;
 
   server.send(200, "application/json", "{\"status\":\"all_on\"}");
 }
@@ -170,6 +204,12 @@ void setup()
 
   server.on("/trigger", HTTP_POST, handleTrigger);
   server.on("/status", HTTP_GET, handleStatus);
+  server.on("/device/state", HTTP_GET, handleDeviceState);
+
+  // endpoint baru
+  server.on("/relay/on", HTTP_GET, handleRelayOn);
+  server.on("/relay/off", HTTP_GET, handleRelayOff);
+
   server.on("/test/on", HTTP_GET, handleTestOn);
   server.on("/test/off", HTTP_GET, handleTestOff);
 
