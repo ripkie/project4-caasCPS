@@ -24,11 +24,14 @@ bool statusRelay = false;
 void allIdle()
 {
   digitalWrite(PIN_RELAY, RELAY_OFF);
-  digitalWrite(PIN_LED, LOW);
-  digitalWrite(PIN_BUZZER, BUZZER_OFF);
-
   statusRelay = false;
+  Serial0.println("[STATE] RELAY -> OFF");
+
+  digitalWrite(PIN_LED, LOW);
   statusLed = false;
+  Serial0.println("[STATE] LED -> OFF");
+
+  digitalWrite(PIN_BUZZER, BUZZER_OFF);
 }
 
 void beepShort(int times)
@@ -49,9 +52,11 @@ void aksesDiterima(String name)
 
   digitalWrite(PIN_LED, HIGH);
   statusLed = true;
+  Serial0.println("[STATE] LED -> ON");
 
   digitalWrite(PIN_RELAY, RELAY_ON);
   statusRelay = true;
+  Serial0.println("[STATE] RELAY -> ON");
 
   digitalWrite(PIN_BUZZER, BUZZER_ON);
   delay(100);
@@ -96,6 +101,10 @@ void handleTrigger()
   }
 
   String action = doc["action"] | "denied";
+  action.trim();
+
+  Serial0.print("[DEBUG] action = ");
+  Serial0.println(action);
 
   if (action == "granted")
   {
@@ -121,12 +130,27 @@ void handleStatus()
 // GET /device/state
 void handleDeviceState()
 {
+  Serial0.print("[CHECK] LED = ");
+  Serial0.print(statusLed ? "ON" : "OFF");
+  Serial0.print(" | RELAY = ");
+  Serial0.println(statusRelay ? "ON" : "OFF");
+
   String json = "{";
   json += "\"led\":" + String(statusLed ? "true" : "false") + ",";
   json += "\"relay\":" + String(statusRelay ? "true" : "false");
   json += "}";
 
   server.send(200, "application/json", json);
+}
+
+// GET /login/test
+void handleLoginTest()
+{
+  Serial0.println("[TEST] Login test dipanggil");
+
+  aksesDiterima("test");
+
+  server.send(200, "application/json", "{\"status\":\"ok\",\"led\":true,\"relay\":true}");
 }
 
 // CONTROL RELAY MANUAL
@@ -138,13 +162,20 @@ void handleRelayOn()
   statusLed = true;
   statusRelay = true;
 
-  server.send(200, "application/json", "{\"relay\":true}");
+  Serial0.println("[MANUAL] RELAY ON");
+  Serial0.println("[STATE] LED -> ON");
+  Serial0.println("[STATE] RELAY -> ON");
+
+  server.send(200, "application/json", "{\"led\":true,\"relay\":true}");
 }
 
 void handleRelayOff()
 {
+  Serial0.println("[MANUAL] RELAY OFF");
+
   allIdle();
-  server.send(200, "application/json", "{\"relay\":false}");
+
+  server.send(200, "application/json", "{\"led\":false,\"relay\":false}");
 }
 
 // TEST ENDPOINT
@@ -157,12 +188,19 @@ void handleTestOn()
   statusLed = true;
   statusRelay = true;
 
+  Serial0.println("[TEST] ALL ON");
+  Serial0.println("[STATE] LED -> ON");
+  Serial0.println("[STATE] RELAY -> ON");
+
   server.send(200, "application/json", "{\"status\":\"all_on\"}");
 }
 
 void handleTestOff()
 {
+  Serial0.println("[TEST] ALL OFF");
+
   allIdle();
+
   server.send(200, "application/json", "{\"status\":\"all_off\"}");
 }
 
@@ -206,7 +244,8 @@ void setup()
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/device/state", HTTP_GET, handleDeviceState);
 
-  // endpoint baru
+  server.on("/login/test", HTTP_GET, handleLoginTest);
+
   server.on("/relay/on", HTTP_GET, handleRelayOn);
   server.on("/relay/off", HTTP_GET, handleRelayOff);
 
